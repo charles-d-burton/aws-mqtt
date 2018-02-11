@@ -1,0 +1,9 @@
+cert: "./1f9a9ad9a1-certificate.pem.crt"
+key:  "./1f9a9ad9a1-private.pem.key"
+plugin-dir: "./"
+mqtt-config:
+    port: 8883
+    host: "a10cp24047duti.iot.us-west-2.amazonaws.com"
+    path: "/mqtt"
+    qos: 1
+    topic: "/nightmare-cat/button_pressed"
