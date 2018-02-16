@@ -110,7 +110,7 @@ func (server *ServerConnection) Start() error {
 		CleanSession:         true,
 		AutoReconnect:        true,
 		MaxReconnectInterval: 1 * time.Second,
-		KeepAlive:            30 * time.Second,
+		KeepAlive:            30000,
 		TLSConfig:            tls.Config{Certificates: []tls.Certificate{server.Cert}},
 	}
 	mqttClient, err := server.Connect(connOpts)
