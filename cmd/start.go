@@ -33,6 +33,8 @@ import (
 //Server interface to control the server
 type Server interface {
 	Start() error
+	Connect(connOpts *MQTT.ClientOptions) (MQTT.Client, error)
+	Subscribe(client MQTT.Client) error
 	Restart()
 	ProcessMessages()
 }
@@ -108,28 +110,17 @@ func (server *ServerConnection) Start() error {
 		CleanSession:         true,
 		AutoReconnect:        true,
 		MaxReconnectInterval: 1 * time.Second,
-		KeepAlive:            int64(30 * time.Second),
+		KeepAlive:            30 * time.Second,
 		TLSConfig:            tls.Config{Certificates: []tls.Certificate{server.Cert}},
 	}
-	connOpts.SetDefaultPublishHandler(func(client MQTT.Client, msg MQTT.Message) {
-		server.Messages <- msg
-	})
-	brokerURL := fmt.Sprintf("tcps://%s:%d%s", server.Host, server.Port, server.Path)
-	connOpts.AddBroker(brokerURL)
-	mqttClient := MQTT.NewClient(connOpts)
-	if token := mqttClient.Connect(); token.Wait() && token.Error() != nil {
-		return token.Error()
+	mqttClient, err := server.Connect(connOpts)
+	if err != nil {
+		return err
 	}
-	// Subscribe
-	go func() {
-		log.Printf("subscribing")
-		if token := mqttClient.Subscribe(server.Topic, byte(server.Qos), nil); token.Wait() && token.Error() != nil {
-			fmt.Println(token.Error())
-			os.Exit(1)
-		}
-		log.Printf("subscribed")
-
-	}()
+	err = server.Subscribe(mqttClient)
+	if err != nil {
+		return err
+	}
 	server.ProcessMessages()
 	log.Println("[MQTT] Connected")
 	quit := make(chan struct{})
@@ -144,6 +135,34 @@ func (server *ServerConnection) Start() error {
 
 	return nil
 
+}
+
+func (server *ServerConnection) Connect(connOpts *MQTT.ClientOptions) (MQTT.Client, error) {
+	/* connOpts.SetDefaultPublishHandler(func(client MQTT.Client, msg MQTT.Message) {
+		server.Messages <- msg
+	}) */
+	brokerURL := fmt.Sprintf("tcps://%s:%d%s", server.Host, server.Port, server.Path)
+	connOpts.AddBroker(brokerURL)
+	mqttClient := MQTT.NewClient(connOpts)
+	token := mqttClient.Connect()
+	token.WaitTimeout(30 * time.Second)
+	token.Wait()
+
+	return mqttClient, token.Error()
+}
+
+func (server *ServerConnection) Subscribe(client MQTT.Client) error {
+	// Subscribe
+
+	log.Printf("subscribing")
+	token := client.Subscribe(server.Topic, byte(server.Qos), func(client MQTT.Client, msg MQTT.Message) {
+		server.Messages <- msg
+	})
+	token.WaitTimeout(30 * time.Second)
+	token.Wait()
+	log.Printf("subscribed")
+
+	return token.Error()
 }
 
 func (server *ServerConnection) Restart() {

@@ -14,7 +14,7 @@
 
 package main
 
-import "nightmare-doorbell/cmd"
+import "github.com/charles-d-burton/aws-mqtt/cmd"
 
 func main() {
 	cmd.Execute()
