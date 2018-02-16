@@ -16,7 +16,9 @@ package cmd
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -38,10 +40,10 @@ type Server interface {
 	Subscribe(client MQTT.Client) error
 	Restart()
 	ProcessMessages()
+	NewTlsConfig() *tls.Config
 }
 
 type ServerConnection struct {
-	Cert     tls.Certificate
 	Host     string
 	Port     int
 	Path     string
@@ -64,18 +66,12 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("start called")
 		var serverConnection ServerConnection
-		cer, err := tls.LoadX509KeyPair(viper.GetString("cert"), viper.GetString("key"))
-		if err != nil {
-			fmt.Println("Cert name: ", viper.GetString("cert"))
-			fmt.Println("Key name: ", viper.GetString("key"))
-			fmt.Println("Could not load X509 Key pair")
-			return
-		}
+		//cer, err := tls.LoadX509KeyPair(viper.GetString("cert"), viper.GetString("key"))
+
 		viper.OnConfigChange(func(e fsnotify.Event) {
 			fmt.Println("Config file changed:", e.Name)
 			configChange(e, &serverConnection)
 		})
-		serverConnection.Cert = cer
 		serverConnection.Host = viper.GetString("mqtt-config.host")
 		serverConnection.Port = viper.GetInt("mqtt-config.port")
 		serverConnection.Path = viper.GetString("mqtt-config.path")
@@ -83,7 +79,7 @@ to quickly create a Cobra application.`,
 		serverConnection.Topic = viper.GetString("mqtt-config.topic")
 		serverConnection.Messages = make(chan MQTT.Message, 200)
 		serverConnection.Control = make(chan os.Signal, 1)
-		err = serverConnection.Start()
+		err := serverConnection.Start()
 		if err != nil {
 			fmt.Errorf("Error: %v", err)
 		}
@@ -112,8 +108,8 @@ func (server *ServerConnection) Start() error {
 		AutoReconnect:        true,
 		MaxReconnectInterval: 1 * time.Second,
 		KeepAlive:            30000,
-		TLSConfig:            tls.Config{Certificates: []tls.Certificate{server.Cert}},
 	}
+	connOpts.SetTLSConfig(server.NewTlsConfig())
 	mqttClient, err := server.Connect(connOpts)
 	if err != nil {
 		return err
@@ -189,5 +185,49 @@ func (server *ServerConnection) ProcessMessages() {
 		sound, format, _ := mp3.Decode(f)
 		speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
 		speaker.Play(sound)
+	}
+}
+
+func (server *ServerConnection) NewTlsConfig() *tls.Config {
+	// Import trusted certificates from CAfile.pem.
+	// Alternatively, manually add CA certificates to
+	// default openssl CA bundle.
+	certpool := x509.NewCertPool()
+	pemCerts, err := ioutil.ReadFile(viper.GetString("ca"))
+	if err == nil {
+		certpool.AppendCertsFromPEM(pemCerts)
+	}
+
+	// Import client certificate/key pair
+	cert, err := tls.LoadX509KeyPair(viper.GetString("cert"), viper.GetString("key"))
+	if err != nil {
+		fmt.Println("Cert name: ", viper.GetString("cert"))
+		fmt.Println("Key name: ", viper.GetString("key"))
+		fmt.Println("Could not load X509 Key pair")
+		return nil
+	}
+
+	// Just to print out the client certificate..
+	cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		panic(err)
+	}
+	log.Println(cert.Leaf)
+
+	// Create tls.Config with desired tls properties
+	return &tls.Config{
+		// RootCAs = certs used to verify server cert.
+		RootCAs: certpool,
+		// ClientAuth = whether to request cert from server.
+		// Since the server is set up for SSL, this happens
+		// anyways.
+		ClientAuth: tls.NoClientCert,
+		// ClientCAs = certs used to validate client cert.
+		ClientCAs: nil,
+		// InsecureSkipVerify = verify that cert contents
+		// match server. IP matches what is in cert etc.
+		InsecureSkipVerify: true,
+		// Certificates = list of certs client sends to server.
+		Certificates: []tls.Certificate{cert},
 	}
 }
