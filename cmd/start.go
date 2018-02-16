@@ -154,16 +154,19 @@ func (server *ServerConnection) Subscribe(client MQTT.Client) error {
 	// Subscribe
 
 	log.Printf("subscribing")
-	token := client.Subscribe(server.Topic, byte(server.Qos), func(client MQTT.Client, msg MQTT.Message) {
-		server.Messages <- msg
-	})
-	token.WaitTimeout(30 * time.Second)
-	token.Wait()
-	log.Printf("subscribed")
-	if token.Error() != nil {
-		fmt.Println(token.Error())
+	if client.IsConnected() {
+		token := client.Subscribe(server.Topic, byte(server.Qos), func(client MQTT.Client, msg MQTT.Message) {
+			server.Messages <- msg
+		})
+		token.WaitTimeout(30 * time.Second)
+		token.Wait()
+		log.Printf("subscribed")
+		if token.Error() != nil {
+			fmt.Println(token.Error())
+		}
+		return token.Error()
 	}
-	return token.Error()
+	return fmt.Errorf("Client is not connected!")
 }
 
 func (server *ServerConnection) Restart() {
