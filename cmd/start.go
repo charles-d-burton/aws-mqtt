@@ -102,13 +102,11 @@ func init() {
 
 func (server *ServerConnection) Start() error {
 	cid := uuid.New().String()
-	connOpts := &MQTT.ClientOptions{
-		ClientID:             cid,
-		CleanSession:         true,
-		AutoReconnect:        true,
-		MaxReconnectInterval: 1 * time.Second,
-		KeepAlive:            30000,
-	}
+	connOpts := MQTT.NewClientOptions()
+	connOpts.SetClientID(cid)
+	connOpts.SetCleanSession(true)
+	connOpts.SetAutoReconnect(true)
+	connOpts.SetMaxReconnectInterval(1 * time.Second)
 	connOpts.SetTLSConfig(server.NewTlsConfig())
 	mqttClient, err := server.Connect(connOpts)
 	if err != nil {
