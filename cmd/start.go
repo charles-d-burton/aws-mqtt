@@ -212,7 +212,7 @@ func (server *ServerConnection) NewTlsConfig() *tls.Config {
 	if err != nil {
 		panic(err)
 	}
-	log.Println(cert.Leaf)
+	//log.Println(cert.Leaf)
 
 	// Create tls.Config with desired tls properties
 	return &tls.Config{
