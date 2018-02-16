@@ -147,7 +147,9 @@ func (server *ServerConnection) Connect(connOpts *MQTT.ClientOptions) (MQTT.Clie
 	token := mqttClient.Connect()
 	token.WaitTimeout(30 * time.Second)
 	token.Wait()
-
+	if token.Error() != nil {
+		fmt.Println(token.Error())
+	}
 	return mqttClient, token.Error()
 }
 
@@ -161,7 +163,9 @@ func (server *ServerConnection) Subscribe(client MQTT.Client) error {
 	token.WaitTimeout(30 * time.Second)
 	token.Wait()
 	log.Printf("subscribed")
-
+	if token.Error() != nil {
+		fmt.Println(token.Error())
+	}
 	return token.Error()
 }
 
