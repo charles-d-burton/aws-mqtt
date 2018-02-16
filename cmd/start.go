@@ -26,6 +26,7 @@ import (
 	"github.com/faiface/beep/mp3"
 	"github.com/faiface/beep/speaker"
 	"github.com/fsnotify/fsnotify"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -104,7 +105,7 @@ func init() {
 }
 
 func (server *ServerConnection) Start() error {
-	cid := "nightmare-doorbell"
+	cid := uuid.New().String()
 	connOpts := &MQTT.ClientOptions{
 		ClientID:             cid,
 		CleanSession:         true,
