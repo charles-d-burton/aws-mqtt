@@ -3,3 +3,6 @@
 1f9a9ad9a1-public.pem.key
 nightmarecat.mp3
 vendor/
+aws-mqtt
+*.so
+VeriSign-Class 3-Public-Primary-Certification-Authority-G5.pem
