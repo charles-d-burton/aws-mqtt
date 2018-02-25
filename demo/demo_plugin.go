@@ -46,7 +46,6 @@ func (plugin mqttPlugin) ProcessMessage(msg MQTT.Message) error {
 
 	done := make(chan struct{})
 	speaker.Play(beep.Seq(plugin.Stream, beep.Callback(func() {
-		plugin.Stream.Close()
 		close(done)
 	})))
 	<-done
@@ -72,8 +71,12 @@ func GetPlugin() (messages.MessageReceiver, error) {
 
 func setupAudio(plugin *mqttPlugin) error {
 
-	sound, format, _ := mp3.Decode(ioutil.NopCloser(bytes.NewReader(plugin.AudioBytes)))
-	err := speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	sound, format, err := mp3.Decode(ioutil.NopCloser(bytes.NewReader(plugin.AudioBytes)))
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	err = speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
 	if err != nil {
 		log.Println(err)
 		return err
