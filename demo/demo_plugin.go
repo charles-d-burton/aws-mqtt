@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"time"
@@ -14,7 +16,9 @@ import (
 )
 
 type mqttPlugin struct {
-	PubTopic func(topic string, qos byte, retained bool, payload interface{}) MQTT.Token
+	PubTopic   func(topic string, qos byte, retained bool, payload interface{}) MQTT.Token
+	AudioBytes []byte
+	Stream     beep.StreamCloser
 }
 
 func (plugin mqttPlugin) PluginID() string {
@@ -39,23 +43,14 @@ func (plugin mqttPlugin) PublishTopic(f func(string, byte, bool, interface{}) MQ
 func (plugin mqttPlugin) ProcessMessage(msg MQTT.Message) error {
 
 	fmt.Println("Message received: ", msg.Topic(), string(msg.Payload()))
-	f, err := os.Open("nightmarecat.mp3")
-	defer f.Close()
-	if err != nil {
-		fmt.Errorf("Error opening audio file: %v", err)
-	}
-	sound, format, _ := mp3.Decode(f)
-	err = speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
-	if err != nil {
-		log.Println(err)
-		return err
-	}
+
 	done := make(chan struct{})
-	speaker.Play(beep.Seq(sound, beep.Callback(func() {
+	speaker.Play(beep.Seq(plugin.Stream, beep.Callback(func() {
+		plugin.Stream.Close()
 		close(done)
 	})))
 	<-done
-
+	go setupAudio(&plugin)
 	//speaker.Play(sound)
 	return nil
 
@@ -63,5 +58,26 @@ func (plugin mqttPlugin) ProcessMessage(msg MQTT.Message) error {
 
 func GetPlugin() (messages.MessageReceiver, error) {
 	receiver := mqttPlugin{}
+	f, err := os.Open("nightmarecat.mp3")
+	defer f.Close()
+	contents, _ := ioutil.ReadAll(f)
+	receiver.AudioBytes = contents
+	if err != nil {
+		return nil, fmt.Errorf("Error opening audio file: %v", err)
+
+	}
+	go setupAudio(&receiver)
 	return receiver, nil
+}
+
+func setupAudio(plugin *mqttPlugin) error {
+
+	sound, format, _ := mp3.Decode(ioutil.NopCloser(bytes.NewReader(plugin.AudioBytes)))
+	err := speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	plugin.Stream = sound
+	return nil
 }
