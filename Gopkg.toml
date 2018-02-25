@@ -23,11 +23,7 @@
 #   non-go = false
 #   go-tests = true
 #   unused-packages = true
-
-
-[[constraint]]
-  name = "github.com/eclipse/paho.mqtt.golang"
-  version = "1.1.0"
+ignored = ["github.com/eclipse/paho.mqtt.golang"]
 
 [[constraint]]
   branch = "master"

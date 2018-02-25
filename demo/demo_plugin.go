@@ -13,7 +13,9 @@ import (
 	"github.com/faiface/beep/speaker"
 )
 
-type mqttPlugin struct{}
+type mqttPlugin struct {
+	PubTopic func(topic string, qos byte, retained bool, payload interface{}) MQTT.Token
+}
 
 func (plugin mqttPlugin) PluginID() string {
 	return "nightmare-doorbell"
@@ -23,6 +25,17 @@ func (plugin mqttPlugin) Topic() string {
 	return "/nightmare-cat/button_pressed"
 }
 
+//Example of how to publish a message with passed in publish topic
+func (plugin mqttPlugin) PublishTopic(f func(string, byte, bool, interface{}) MQTT.Token) error {
+	plugin.PubTopic = f
+	if token := f(plugin.Topic(), 0, false, "mymessage"); token.Wait() && token.Error() != nil {
+		log.Println(token.Error())
+	}
+	log.Println("Published messaged!")
+	return nil
+}
+
+//ProcessMessage function assigned to MQTT callback to allow processing of incoming messages
 func (plugin mqttPlugin) ProcessMessage(msg MQTT.Message) error {
 
 	fmt.Println("Message received: ", msg.Topic(), string(msg.Payload()))
@@ -42,6 +55,7 @@ func (plugin mqttPlugin) ProcessMessage(msg MQTT.Message) error {
 		close(done)
 	})))
 	<-done
+
 	//speaker.Play(sound)
 	return nil
 

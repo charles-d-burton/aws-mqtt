@@ -143,13 +143,14 @@ func (server *ServerConnection) Subscribe(client MQTT.Client) error {
 	// Subscribe
 	if client.IsConnected() {
 		for _, receiver := range server.Receivers {
-
+			receiver.PublishTopic(client.Publish)
 			topic := receiver.Topic()
 			log.Printf("subscribing: ", topic)
 			token := client.Subscribe(topic, byte(server.Qos), func(client MQTT.Client, msg MQTT.Message) {
 				server.Messages <- msg
 				//receiver.ProcessMessage(msg)
 			})
+
 			token.WaitTimeout(30 * time.Second)
 			token.Wait()
 			log.Printf("subscribed")
