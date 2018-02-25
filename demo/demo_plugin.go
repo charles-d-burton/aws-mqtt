@@ -50,7 +50,7 @@ func (plugin mqttPlugin) ProcessMessage(msg MQTT.Message) error {
 		log.Println(err)
 		return err
 	}
-	err = speaker.Init(format.SampleRate, format.SampleRate.N(time.Second*10))
+	err = speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/2))
 	if err != nil {
 		log.Println(err)
 		return err
